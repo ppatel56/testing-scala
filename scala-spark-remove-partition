@@ -1,0 +1,28 @@
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
+import com.amazonaws.services.s3.model.ListObjectsV2Request
+
+val s3Client: AmazonS3 = AmazonS3ClientBuilder.standard()
+  .withCredentials(new DefaultAWSCredentialsProviderChain())
+  .build()
+
+val bucketName = "my-s3-bucket-name"
+val folderContainingMultiplePartitions = "folder/"
+
+val listObjectsRequest = new ListObjectsV2Request()
+  .withBucketName(bucketName)
+  .withPrefix(folderContainingMultiplePartitions)
+  .withDelimiter("/") // assuming your partitions are separated by "/" in S3 keys
+
+val objectListing = s3Client.listObjectsV2(listObjectsRequest)
+
+// Note that getObjectSummaries returns a list, not an ObjectListing object.
+val objectSummaries = objectListing.getObjectSummaries
+
+objectSummaries.asScala.foreach(summary => { // Need to convert Java list to Scala list
+  val key = summary.getKey
+  if (key.endsWith("-Parittion1") || key.endsWith("-Partition2")) {
+    s3Client.deleteObject(bucketName, key)
+    println(s"Deleted object: $key")
+  }
+})
